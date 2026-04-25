@@ -1,65 +1,14 @@
 # mcp-local-dev-toolbox
 
-> A local MCP server that gives AI agents safe, explicit access to filesystem, git, and test-runner tools during development.
+A local MCP server that gives AI agents safe, explicit access to filesystem, git, search, and test-runner tools — no generic shell exec.
 
----
-
-## Why it exists
-
-Most MCP servers are cloud-focused — they wrap APIs, databases, or SaaS products. But when an AI agent is helping you write code, what it actually needs is access to the *local* development environment: read a file, run the tests, check git status, search the codebase.
-
-The problem is that naive tool access is dangerous. A tool called `run_command` that accepts arbitrary shell strings is a footgun. Most existing local-shell MCP servers either expose too much (arbitrary exec) or too little (read-only, no context).
-
-**mcp-local-dev-toolbox** is built around a different philosophy:
-
-- **Explicit tool inventory** — every capability is a named, typed, documented tool. There is no generic exec.
-- **Safe defaults** — filesystem writes require the path to be inside an allowlisted workspace root; destructive operations require confirmation flags.
-- **Composable servers** — you can run just the filesystem tools, just the git tools, or all of them together.
-- **Audit log** — every tool invocation is written to a local audit log so you can review what the agent did.
-
----
-
-## What makes it interesting
-
-### Explicit tool design
-Rather than one `shell` tool, there are purpose-built tools: `git_status`, `run_tests`, `grep_codebase`. Each tool has a narrow, well-defined interface. The agent can't accidentally `rm -rf` something when asking for git status.
-
-### Safety by construction
-The `SafetyChecker` runs before every tool call. It enforces:
-- Path operations must resolve inside the configured workspace root
-- Write operations are opt-in per-session
-- A list of never-allowed patterns (e.g. writing to `.git/`, executing scripts outside the project)
-
-### Audit log
-Every call is appended to `~/.mcp-local-dev-toolbox/audit.jsonl` with timestamp, tool name, inputs, and whether it was allowed or blocked. This gives you a complete record of agent activity.
-
-### Composable
-Each tool category is a separate module. You can mount only the tools you want — useful if you want filesystem + git but not test-running.
-
----
-
-## Quickstart
-
-### Prerequisites
-
-- Node.js 20+
-- An MCP-compatible client (Claude Desktop, Cursor, or any client that supports the MCP protocol)
-
-### Install & run
+## Setup
 
 ```bash
 git clone https://github.com/yourname/mcp-local-dev-toolbox
 cd mcp-local-dev-toolbox
-npm install
-npm run build
-
-# Start the server against your project workspace
-WORKSPACE_ROOT=/path/to/your/project npm start
+npm install && npm run build
 ```
-
-The server listens on stdio by default (as required by the MCP spec for local servers).
-
-### Connect to Claude Desktop
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -68,69 +17,71 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "local-dev-toolbox": {
       "command": "node",
-      "args": ["/path/to/mcp-local-dev-toolbox/dist/server.js"],
+      "args": ["/absolute/path/to/mcp-local-dev-toolbox/dist/server.js"],
       "env": {
-        "WORKSPACE_ROOT": "/path/to/your/project",
-        "ALLOW_WRITES": "true"
+        "WORKSPACE_ROOT": "/absolute/path/to/your/project",
+        "ALLOW_WRITES": "false",
+        "AUDIT_LOG_PATH": "/tmp/mcp-local-dev-toolbox/audit.jsonl"
       }
     }
   }
 }
 ```
 
-See [`examples/claude-config.json`](examples/claude-config.json) for a complete example.
+Set `ALLOW_WRITES` to `"true"` when you want the agent to edit files. Omit it for read-only access — git, search, and test-running still work. See [`examples/cursor-config.json`](examples/cursor-config.json) for Cursor setup.
 
-### Connect to Cursor
+## Tools
 
-Add to your Cursor MCP settings. See [`examples/cursor-config.json`](examples/cursor-config.json).
+Full reference: [TOOLS.md](TOOLS.md)
 
----
+| Tool | Category | Description |
+|------|----------|-------------|
+| `read_file` | Filesystem | Read a file's contents |
+| `write_file` | Filesystem | Write or overwrite a file (requires `ALLOW_WRITES`) |
+| `list_dir` | Filesystem | List directory contents |
+| `file_exists` | Filesystem | Check if a path exists |
+| `git_status` | Git | Working tree status |
+| `git_diff` | Git | Diff against HEAD or a ref |
+| `git_log` | Git | Commit history |
+| `git_branch` | Git | List or switch branches |
+| `run_tests` | Tests | Run test suite, optionally filtered by pattern |
+| `get_coverage` | Tests | Coverage summary for the workspace |
+| `grep_codebase` | Search | Regex search across project files |
+| `find_files` | Search | Glob-based file finder |
+| `search_symbols` | Search | Symbol-level search (functions, classes) |
 
-## Example workflow
+## Safety model
 
-With this server running, you can have a conversation like:
+- **Path allowlist** — every filesystem operation is validated against `WORKSPACE_ROOT`; paths outside it are rejected before the tool runs.
+- **No generic exec** — there is no `run_command` tool. Every capability is a named, typed tool with a narrow interface.
+- **Audit log** — every tool call (allowed or blocked) is appended to `AUDIT_LOG_PATH` as newline-delimited JSON.
 
-> **You:** The tests in `src/auth` are failing. Can you figure out why?
+## Project layout
 
-The agent then:
-1. Calls `git_status` to understand what changed recently
-2. Calls `run_tests` with `pattern: "src/auth"` to see the failures
-3. Calls `read_file` on the relevant test files and source files
-4. Calls `grep_codebase` to find related usages
-5. Proposes a fix, then calls `run_tests` again to verify
+```
+src/
+  server.ts          # MCP server entry point
+  tools/
+    filesystem.ts    # read_file, write_file, list_dir, …
+    git.ts           # git_status, git_diff, git_log, …
+    tests.ts         # run_tests, get_coverage, …
+    search.ts        # grep_codebase, find_files, …
+  safety.ts          # SafetyChecker — path validation, write guard
+  audit.ts           # Append-only audit log
+examples/
+  claude-config.json
+  cursor-config.json
+TOOLS.md             # Complete tool reference
+```
 
-All of this happens without the agent having a generic shell — it only has the tools it needs, and every call is logged.
+## Configuration
 
----
-
-## Tool inventory
-
-See [TOOLS.md](TOOLS.md) for the complete, detailed tool reference.
-
-**Quick summary:**
-
-| Category   | Tools |
-|------------|-------|
-| Filesystem | `read_file`, `list_dir`, `write_file`, `file_exists`, `get_file_info` |
-| Git        | `git_status`, `git_diff`, `git_log`, `git_branch`, `git_show` |
-| Tests      | `run_tests`, `get_coverage`, `list_test_files` |
-| Search     | `grep_codebase`, `find_files`, `search_symbols` |
-
----
-
-## What this demonstrates
-
-- **MCP server patterns** — how to structure a TypeScript MCP server using `@modelcontextprotocol/sdk`, register tools, handle errors
-- **Safe tool design** — the difference between "wrap shell exec" and "explicit, typed, guarded tools"
-- **Audit logging** — how to build observability into agent-facing APIs
-- **Composable architecture** — splitting tools into modules that can be selectively included
-
----
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `WORKSPACE_ROOT` | Yes | — | Absolute path the agent is allowed to access |
+| `ALLOW_WRITES` | No | `false` | Enable `write_file` and other mutating tools |
+| `AUDIT_LOG_PATH` | No | `~/.mcp-local-dev-toolbox/audit.jsonl` | Where to write the audit log |
 
 ## Status
 
-**This is a portfolio/demonstration project.** The tool definitions and server scaffolding are complete and runnable. Some tool implementations are stubs that print their intended behavior — implementing the full logic for every tool is left as an intentional exercise (the architecture is the point, not the line count).
-
-Tools marked `[stub]` in TOOLS.md have interface definitions and safety wiring but delegate to `TODO` implementations. The real implementations would use `simple-git`, `fast-glob`, and child_process with argument arrays (never template strings).
-
-PRs welcome.
+Portfolio/demonstration project. Tool interfaces, safety wiring, and server scaffolding are complete and runnable. Tools marked `[stub]` in TOOLS.md have full interfaces but delegate to `TODO` implementations — the real logic would use `simple-git`, `fast-glob`, and `child_process` with argument arrays. PRs welcome.
