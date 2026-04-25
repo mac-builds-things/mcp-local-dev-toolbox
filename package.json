@@ -1,0 +1,44 @@
+{
+  "name": "mcp-local-dev-toolbox",
+  "version": "0.1.0",
+  "description": "A local MCP server that gives AI agents safe, explicit access to filesystem, git, and test-runner tools during development.",
+  "type": "module",
+  "main": "./dist/server.js",
+  "bin": {
+    "mcp-local-dev-toolbox": "./dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/server.js",
+    "dev": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "agent",
+    "developer-tools",
+    "typescript"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "TOOLS.md"
+  ]
+}

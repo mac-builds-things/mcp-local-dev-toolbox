@@ -1,0 +1,28 @@
+{
+  "_comment": "Claude Desktop MCP configuration for mcp-local-dev-toolbox.",
+  "_instructions": [
+    "Add the 'mcpServers' block below to your Claude Desktop config file.",
+    "Config file location: ~/Library/Application Support/Claude/claude_desktop_config.json (macOS)",
+    "Config file location: %APPDATA%\\Claude\\claude_desktop_config.json (Windows)",
+    "",
+    "Replace /absolute/path/to/mcp-local-dev-toolbox with the actual path where you cloned this repo.",
+    "Replace /absolute/path/to/your/project with the root of the project you want the agent to access.",
+    "",
+    "ALLOW_WRITES controls whether the agent can write files.",
+    "Set to 'true' only when you want the agent to be able to edit files.",
+    "Omit it or set to 'false' for read-only access (git, search, test-running still work)."
+  ],
+  "mcpServers": {
+    "local-dev-toolbox": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/mcp-local-dev-toolbox/dist/server.js"
+      ],
+      "env": {
+        "WORKSPACE_ROOT": "/absolute/path/to/your/project",
+        "ALLOW_WRITES": "false",
+        "AUDIT_LOG_PATH": "/tmp/mcp-local-dev-toolbox/audit.jsonl"
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "_comment": "Cursor MCP configuration for mcp-local-dev-toolbox.",
+  "_instructions": [
+    "Add the server entry below to your Cursor MCP settings.",
+    "In Cursor: Settings → Features → MCP → Add MCP Server",
+    "Or manually edit: ~/.cursor/mcp.json",
+    "",
+    "Replace /absolute/path/to/mcp-local-dev-toolbox with the actual path where you cloned this repo.",
+    "Replace /absolute/path/to/your/project with the root of the project you want the agent to access.",
+    "",
+    "Tip: Set WORKSPACE_ROOT to the same directory as your Cursor workspace for the tightest fit.",
+    "Tip: You can run multiple instances with different WORKSPACE_ROOTs for multi-repo work —",
+    "      just give each a unique key (e.g. 'local-dev-toolbox-backend', 'local-dev-toolbox-frontend')."
+  ],
+  "mcpServers": {
+    "local-dev-toolbox": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/mcp-local-dev-toolbox/dist/server.js"
+      ],
+      "env": {
+        "WORKSPACE_ROOT": "/absolute/path/to/your/project",
+        "ALLOW_WRITES": "false",
+        "AUDIT_LOG_PATH": "/tmp/mcp-local-dev-toolbox/audit.jsonl"
+      }
+    }
+  }
+}
