@@ -1,0 +1,37 @@
+---
+description: Tool safety standards for mcp-local-dev-toolbox
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+# MCP Tool Safety Standards
+
+## Every tool must validate paths through PathGuard
+
+```typescript
+// ✅ GOOD
+export async function readFile(params: ReadFileParams): Promise<ToolResult> {
+  const guard = new PathGuard(process.env.ALLOWED_DIRS?.split(",") ?? []);
+  if (!guard.isAllowed(params.path)) {
+    return { error: "Path not in allowed directories", code: "PATH_BLOCKED" };
+  }
+  // ... proceed
+}
+
+// ❌ BAD — no path validation
+export async function readFile(params: ReadFileParams): Promise<ToolResult> {
+  return fs.readFile(params.path, "utf-8");
+}
+```
+
+## Destructive tools must use explicit intent params
+
+Write, delete, and overwrite tools must require a `confirm: true` parameter so agents explicitly acknowledge the operation.
+
+## All tools return structured errors
+
+Never throw unhandled exceptions from a tool handler. Catch and return `{ error: string, code: string }`.
+
+## Register every tool in TOOLS.md
+
+If you add a tool to code but not to `TOOLS.md`, the tool is undiscoverable. Both must stay in sync.

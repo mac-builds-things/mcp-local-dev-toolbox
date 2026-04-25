@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/guard-server-ops.sh",
+        "matcher": "npm start|node dist/server|pkill",
+        "failClosed": false
+      }
+    ]
+  }
+}
